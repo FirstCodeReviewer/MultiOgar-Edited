@@ -67,7 +67,7 @@ function GameServer() {
         serverStatsPort: 88, // Port for stats server. Having a negative number will disable the stats server.
         serverStatsUpdate: 60, // Update interval of server stats in seconds
         mobilePhysics: 0, // Whether or not the server uses mobile agar.io physics
-        badWordFilter: 1, // Toggle whether you want the bad word filter on (0 to disable, 1 to enable) 
+        badWordFilter: 1, // Toggle whether you want the bad word filter on (0 to disable, 1 to enable)
         serverRestart: 0, // Toggle whether you want your server to auto restart in minutes. (0 to disable)
         serverRestartTimes: '', // Restart the server at a certain time of the day (eg: 00:00:00 - 06:00:00 - 12:00:00 - 18:00:00) [Use ' - ' to seperate more restarts by time]
 
@@ -546,7 +546,7 @@ GameServer.prototype.sendChatMessage = function (from, to, message) {
         if (!to || to == this.clients[i].playerTracker) {
             var Packet = require('./packet');
             if (this.config.separateChatForTeams && this.gameMode.haveTeams) {
-                //  from equals null if message from server 
+                //  from equals null if message from server
                 if (from == null || from.team === this.clients[i].playerTracker.team) {
                     this.clients[i].packetHandler.sendPacket(new Packet.ChatMessage(from, message));
                 }
@@ -611,9 +611,9 @@ GameServer.prototype.mainLoop = function () {
             var client = this.clients[i];
             client.close();
         };
-        this.nodes = []; 
+        this.nodes = [];
         this.nodesVirus = [];
-        this.nodesFood = []; 
+        this.nodesFood = [];
         this.nodesEjected = [];
         this.nodesPlayer = [];
         this.movingNodes = [];
