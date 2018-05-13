@@ -43,7 +43,7 @@ function GameServer() {
     this.mainLoopBind = null;
     this.tickCounter = 0;
     this.disableSpawn = false;
-    this.nextServerRestart = Infinity;
+    this.nextRestart = Infinity;
 
     // Config
     this.config = {
@@ -69,7 +69,7 @@ function GameServer() {
         mobilePhysics: 0, // Whether or not the server uses mobile agar.io physics
         badWordFilter: 1, // Toggle whether you want the bad word filter on (0 to disable, 1 to enable)
         serverRestart: 0, // Toggle whether you want your server to auto restart in minutes. (0 to disable)
-        serverRestartTimes: '', // Restart the server at a certain time of the day (eg: 00:00:00 - 06:00:00 - 12:00:00 - 18:00:00) [Use ' - ' to seperate more restarts by time]
+        serverRestartTimes: '', // Restart the server at a certain time of the day HH:MM (eg: 06:00 - 12:00 - 18:00) [Use ' - ' to seperate more restarts by time] Must be in least to greatest order.
 
         /** CLIENT **/
         serverMaxLB: 10, // Controls the maximum players displayed on the leaderboard.
@@ -202,7 +202,50 @@ GameServer.prototype.start = function () {
     if (this.config.serverStatsPort > 0) {
         this.startStatsServer(this.config.serverStatsPort);
     }
-    if (this.config.serverRestartTimes) this.nextServerRestart = this.getNextRestart();
+    this.nextRestart = this.getNextRestart();
+};
+
+GameServer.prototype.restart = function () {
+    console.log("restart");
+    var QuadNode = require('./modules/QuadNode.js');
+    this.httpServer = null;
+    this.wsServer = null;
+    this.run = true;
+    this.lastNodeId = 1;
+    this.lastPlayerId = 1;
+    if (this.config.serverBots) {
+        for (var i = 0; i < this.config.serverBots; i++)
+            this.bots.addBot();
+        Logger.info("Added " + this.config.serverBots + " player bots");
+    };
+    for (var i = 0; i < this.clients.length; i++) {
+        var client = this.clients[i];
+        client.close();
+    };
+    this.nodes = [];
+    this.nodesVirus = [];
+    this.nodesFood = [];
+    this.nodesEjected = [];
+    this.nodesPlayer = [];
+    this.movingNodes = [];
+    this.commands;
+    this.tickCounter = 0;
+    this.startTime = Date.now();
+    this.setBorder(this.config.borderWidth, this.config.borderHeight);
+    this.quadTree = new QuadNode(this.border, 64, 32);
+    this.nextRestart = this.getNextRestart();
+};
+
+GameServer.prototype.getNextRestart = function () {
+    const dateFromHHMM = (hhmm, now = new Date()) => {
+        return new Date(now.toString().replace(/\d\d:\d\d:\d\d/, hhmm + ":00"));
+    };
+    const nowDate = new Date();
+    const now = nowDate.getTime();
+    console.log(this.config.serverRestartTimes.toString());
+    let restartTimes = this.config.serverRestartTimes.toString().split(" - ");
+    restartTimes = restartTimes.map(a => dateFromHHMM(a, nowDate).getTime());
+    return restartTimes.find(a => a > now) || Infinity;
 };
 
 GameServer.prototype.onHttpServerOpen = function () {
@@ -574,55 +617,15 @@ GameServer.prototype.timerLoop = function () {
     setTimeout(this.timerLoopBind, 0);
 };
 
-dateFrom24HourTime = (ref, hour24) => {
-    let date = new Date("1970-01-01T" + hour24);
-    date.setFullYear(ref.getFullYear(), ref.getMonth(), ref.getDate());
-    return date;
-};
-GameServer.prototype.getNextRestart = function () {
-    const now = new Date();
-    let restartTimes = this.config.serverRestartTimes.split(" - ");
-    restartTimes = restartTimes.map(a => dateFrom24HourTime(now, a).getTime());
-    return restartTimes.find(a => a > now.getTime()) || Infinity;
-};
-
 GameServer.prototype.mainLoop = function () {
     this.stepDateTime = Date.now();
     var tStart = process.hrtime();
     var self = this;
 
     // Restart
-    var serverRestartTime = Infinity;
-    if (this.config.serverRestartTimes) serverRestartTime = this.getNextRestart();
-    if (this.tickCounter > this.config.serverRestart || this.nextServerRestart != serverRestartTime) {
-        this.nextServerRestart = serverRestartTime;
-        var QuadNode = require('./modules/QuadNode.js');
-        this.httpServer = null;
-        this.wsServer = null;
-        this.run = true;
-        this.lastNodeId = 1;
-        this.lastPlayerId = 1;
-        if (this.config.serverBots) {
-            for (var i = 0; i < this.config.serverBots; i++)
-                this.bots.addBot();
-            Logger.info("Added " + this.config.serverBots + " player bots");
-        };
-        for (var i = 0; i < this.clients.length; i++) {
-            var client = this.clients[i];
-            client.close();
-        };
-        this.nodes = [];
-        this.nodesVirus = [];
-        this.nodesFood = [];
-        this.nodesEjected = [];
-        this.nodesPlayer = [];
-        this.movingNodes = [];
-        this.commands;
-        this.tickCounter = 0;
-        this.startTime = Date.now();
-        this.setBorder(this.config.borderWidth, this.config.borderHeight);
-        this.quadTree = new QuadNode(this.border, 64, 32);
-    };
+    if (this.tickCounter > this.config.serverRestart || this.stepDateTime > this.nextRestart) {
+        this.restart();
+    }
 
     // Loop main functions
     if (this.run) {
