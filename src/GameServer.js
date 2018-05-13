@@ -206,7 +206,6 @@ GameServer.prototype.start = function () {
 };
 
 GameServer.prototype.restart = function () {
-    console.log("restart");
     var QuadNode = require('./modules/QuadNode.js');
     this.httpServer = null;
     this.wsServer = null;
@@ -242,7 +241,6 @@ GameServer.prototype.getNextRestart = function () {
     };
     const nowDate = new Date();
     const now = nowDate.getTime();
-    console.log(this.config.serverRestartTimes.toString());
     let restartTimes = this.config.serverRestartTimes.toString().split(" - ");
     restartTimes = restartTimes.map(a => dateFromHHMM(a, nowDate).getTime());
     return restartTimes.find(a => a > now) || Infinity;
